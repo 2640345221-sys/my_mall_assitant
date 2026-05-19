@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="assitant.mapper.GoodsMapper">
+
+    <select id="searchByKeywordAndPriceRange" resultType="assitant.entity.po.Goods">
+        select * from my_mall.goods
+        <where>
+            <if test="keyword!=null and keyword!=''">
+                and name like concat('%',#{keyword},'%')
+            </if>
+            <if test="minPrice!=null">
+                and selling_price &gt;=#{minPrice}
+            </if>
+            <if test="maxPrice!=null">
+                and selling_price &lt;=#{maxPrice}
+            </if>
+        </where>
+    </select>
+
+    <update id="deductStock">
+        <foreach collection="list" item="item" separator=";">
+            UPDATE my_mall.goods
+            SET stock_num = stock_num - #{item.count}
+            WHERE id = #{item.id}
+              AND stock_num >= #{item.count}
+        </foreach>
+    </update>
+
+    <update id="recoverStock">
+        <foreach collection="list" item="item" separator=";">
+            UPDATE my_mall.goods
+            SET stock_num = stock_num + #{item.count}
+            WHERE id = #{item.id}
+        </foreach>
+    </update>
+</mapper>

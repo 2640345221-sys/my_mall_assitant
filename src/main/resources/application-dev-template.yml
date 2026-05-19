@@ -1,0 +1,40 @@
+kkek:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    host: localhost
+    port: 3306
+    database: my_mall
+    username: <your-db-username>
+    password: <your-db-password>
+  redis:
+    host: localhost
+    port: 6379
+    database: 0
+    password: <your-redis-password>
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 2
+  wechat:
+    appid: <your-wechat-appid>
+    secret: <your-wechat-secret>
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+  deepseek:
+    api-key: <your-deepseek-api-key>
+    base-url: https://api.deepseek.com
+    model: deepseek-chat
+    temperature: 0.8
+  dashscope:
+    api-key: <your-dashscope-api-key>
+    model: qwen3-max
+aliyun:
+  oss:
+    bucket-name: <your-oss-bucket>
+    endpoint: <your-oss-endpoint>
+    access-key-secret: <your-oss-secret>
+    access-key-id: <your-oss-key-id>

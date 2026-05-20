@@ -16,6 +16,11 @@ public interface OrderMapper {
 
     List<Order> findByUserIdAndStatus(@Param("userId") Long userId, @Param("status") Integer status);
 
+    List<Order> findByUserStatusAndTime(@Param("userId") Long userId,
+                                        @Param("status") Integer status,
+                                        @Param("startTime") java.time.LocalDateTime startTime,
+                                        @Param("endTime") java.time.LocalDateTime endTime);
+
     @Insert("INSERT INTO my_mall.`order`(order_no, user_id, total_price, pay_status, pay_type, order_status) " +
             "VALUES(#{orderNo}, #{userId}, #{totalPrice}, #{payStatus}, #{payType}, #{orderStatus})")
     @Options(useGeneratedKeys = true, keyProperty = "id")
@@ -23,4 +28,5 @@ public interface OrderMapper {
 
     @Update("UPDATE my_mall.`order` SET order_status = #{status} WHERE id = #{id}")
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
+
 }

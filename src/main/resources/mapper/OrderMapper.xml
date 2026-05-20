@@ -14,4 +14,21 @@
         order by create_time desc
     </select>
 
+    <select id="findByUserStatusAndTime" resultType="assitant.entity.po.Order">
+        select * from my_mall.`order`
+        <where>
+            and user_id = #{userId}
+            <if test="status != null">
+                and order_status = #{status}
+            </if>
+            <if test="startTime != null">
+                and pay_time &gt;= #{startTime}
+            </if>
+            <if test="endTime != null">
+                and pay_time &lt;= #{endTime}
+            </if>
+        </where>
+        order by pay_time desc
+    </select>
+
 </mapper>

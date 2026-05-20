@@ -3,8 +3,6 @@ package assitant.controller;
 import assitant.agent.MallAgentService;
 import assitant.entity.dto.ChatRequest;
 import assitant.entity.dto.ChatResponse;
-import com.alibaba.cloud.ai.graph.agent.ReactAgent;
-import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
@@ -16,10 +14,8 @@ public class ChatController {
 
     @Autowired
     private MallAgentService agentService;
-    @Autowired
-    private ReactAgent reactAgent;
 
-    @SneakyThrows
+
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ChatResponse chat(@RequestBody ChatRequest request) {
         String cid = request.getConversationId() != null ? request.getConversationId() : "default";

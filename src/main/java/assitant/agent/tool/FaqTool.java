@@ -1,10 +1,10 @@
 package assitant.agent.tool;
 
+import assitant.annotation.OperationLog;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-@Slf4j
 @Service
 public class FaqTool {
 
@@ -36,6 +35,7 @@ public class FaqTool {
     }
 
     @PostConstruct
+    @OperationLog(module = "RAG", type = "初始化", description = "FAQ向量索引")
     public void init() {
         try {
             List<FaqEntry> entries = objectMapper.readValue(
@@ -50,15 +50,14 @@ public class FaqTool {
                 }
                 vectorStore.add(batch);
             }
-            log.info("[FaqTool] FAQ初始化完成, 共{}条", entries.size());
         } catch (Exception e) {
-            log.error("[FaqTool] FAQ初始化失败", e);
+            throw new RuntimeException("FAQ初始化失败", e);
         }
     }
 
     @Tool(description = "搜索FAQ知识库，回答退换货、发货、支付、售后等常见问题")
-    public String ask(
-            @ToolParam(description = "用户的问题，如'怎么退货'、'几天到货'等") String query) {
+    @OperationLog(module = "Agent", type = "查询", description = "FAQ搜索", recordParams = true)
+    public String ask(@ToolParam(description = "用户的问题，如'怎么退货'、'几天到货'等") String query) {
         List<Document> docs = vectorStore.similaritySearch(
                 SearchRequest.builder().query(query).topK(2).similarityThreshold(0.3).build());
         if (docs.isEmpty()) return "抱歉，这个问题我暂时无法回答，建议联系人工客服。";

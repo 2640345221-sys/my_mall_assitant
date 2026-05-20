@@ -88,17 +88,19 @@ public class GoodsTool {
             if (goods == null) continue;
             sb.append("ID:").append(goodsId).append(" ").append(goods.getName())
               .append(" | ").append(goods.getIntro())
-              .append(" | 价格:").append(goods.getSellingPrice()).append("分")
+              .append(" | 价格:").append(goods.getSellingPrice() / 100.0).append("元")
               .append(" | 库存:").append(goods.getStockNum()).append("件\n");
         }
         sb.append("请根据以上信息为用户推荐最合适的商品。");
         return sb.toString();
     }
 
-    @Tool(description = "根据商品ID获取商品完整信息，返回name/价格/库存/详情等")
+    @Tool(description = "根据商品ID获取商品完整信息，返回name/价格(元)/库存/详情等")
     @OperationLog(module = "Agent", type = "查询", description = "商品详情", recordParams = true)
     public Goods getDetail(@ToolParam(description = "商品ID，从semanticRecommend返回的'ID:数字'中提取数字部分") Long goodsId) {
-        return goodsMapper.findById(goodsId);
+        Goods g = goodsMapper.findById(goodsId);
+        if (g != null) g.setSellingPrice(g.getSellingPrice() / 100);
+        return g;
     }
 
     @Tool(description = "获取全部商品分类列表")
@@ -112,7 +114,6 @@ public class GoodsTool {
     public List<Goods> getByCategory(@ToolParam(description = "分类ID") Long categoryId) {
         List<Goods> result = goodsMapper.findByCategoryId(categoryId);
         if (!result.isEmpty()) return result;
-        // 降级：level-1/2 分类下无商品，查所有 level-3 子分类
         List<GoodsCategory> children = categoryMapper.findByParentId(categoryId);
         if (children.isEmpty()) return result;
         List<Goods> all = new ArrayList<>();

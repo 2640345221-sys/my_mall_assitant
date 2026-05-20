@@ -1,10 +1,10 @@
 package assitant.agent.tool;
 
+import assitant.annotation.OperationLog;
 import assitant.entity.dto.OrderDetailVO;
 import assitant.entity.dto.StockDeductDTO;
 import assitant.entity.po.*;
 import assitant.mapper.*;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,9 +15,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
-@Slf4j
 @Service
 public class OrderTool {
 
@@ -34,23 +32,17 @@ public class OrderTool {
     @Autowired
     private GoodsMapper goodsMapper;
 
-    @Tool(name = "createOrder", description = "从购物车创建订单。addressId从getUserAddresses返回的地址列表中获取。返回订单号和总金额")
+    @Tool(name = "createOrder", description = "为购物车中全部商品创建订单。调用前必须先确认用户要买哪些商品（全下还是部分）。addressId从getUserAddresses返回中获取。返回订单号和总金额")
     @Transactional(rollbackFor = Exception.class)
+    @OperationLog(module = "Agent", type = "写入", description = "创建订单", recordParams = true)
     public String createOrder(
             @ToolParam(description = "用户ID") Long userId,
             @ToolParam(description = "收货地址ID，从getUserAddresses返回中获取") Long addressId) {
-        log.info("[OrderTool] createOrder: userId={}, addressId={}", userId, addressId);
         List<ShoppingCart> cartItems = cartMapper.findByUserId(userId);
-        if (cartItems.isEmpty()) {
-            log.warn("[OrderTool] createOrder: 购物车为空");
-            return "购物车为空，无法下单";
-        }
+        if (cartItems.isEmpty()) return "购物车为空，无法下单";
         UserAddress addr = userAddressMapper.findByUserId(userId).stream()
                 .filter(a -> a.getId().equals(addressId)).findFirst().orElse(null);
-        if (addr == null) {
-            log.warn("[OrderTool] createOrder: 地址不存在");
-            return "收货地址不存在";
-        }
+        if (addr == null) return "收货地址不存在";
         List<StockDeductDTO> deductList = new ArrayList<>();
         int total = 0;
         for (ShoppingCart item : cartItems) {
@@ -84,25 +76,29 @@ public class OrderTool {
             orderItemMapper.insert(oi);
         }
         for (ShoppingCart c : cartItems) cartMapper.deleteById(c.getId());
-        // TODO [修复] 价格单位统一：数据库存分(fen)，但返回时应统一为元(yuan)。当前 total/100.0 变元，但工具返回的 Goods 对象里 sellingPrice 仍是分，LLM 可能混淆
         return "下单成功，订单号：" + orderNo + "，总金额：" + total / 100.0 + "元，共" + deductList.size() + "件商品";
     }
 
     @Tool(description = "查询用户订单列表。status:0待支付1已支付2已发货3已完成4已取消，不传查全部")
+    @OperationLog(module = "Agent", type = "查询", description = "订单列表", recordParams = true)
     public List<Order> getOrderList(
             @ToolParam(description = "用户ID") Long userId,
             @ToolParam(description = "订单状态筛选：0待支付1已支付2已发货3已完成4已取消，不传查全部") Integer status) {
-        log.info("[OrderTool] getOrderList: userId={}, status={}", userId, status);
-        if (status != null) return orderMapper.findByUserIdAndStatus(userId, status);
-        return orderMapper.findByUserId(userId);
+        List<Order> list;
+        if (status != null) list = orderMapper.findByUserIdAndStatus(userId, status);
+        else list = orderMapper.findByUserId(userId);
+        list.forEach(o -> o.setTotalPrice(o.getTotalPrice() / 100));
+        return list;
     }
 
     @Tool(description = "获取订单详情，包含商品明细")
+    @OperationLog(module = "Agent", type = "查询", description = "订单详情", recordParams = true)
     public OrderDetailVO getOrderDetail(@ToolParam(description = "订单ID，从getOrderList返回中获取") Long orderId) {
-        log.info("[OrderTool] getOrderDetail: orderId={}", orderId);
         Order order = orderMapper.findById(orderId);
         if (order == null) return null;
+        order.setTotalPrice(order.getTotalPrice() / 100);
         List<OrderItem> items = orderItemMapper.findByOrderId(orderId);
+        items.forEach(i -> i.setPrice(i.getPrice() / 100));
         OrderDetailVO vo = new OrderDetailVO();
         vo.setOrder(order);
         vo.setItems(items);
@@ -110,8 +106,9 @@ public class OrderTool {
     }
 
     @Tool(description = "取消订单，会恢复商品库存。只能取消待支付(0)和已支付(1)的订单")
+    @OperationLog(module = "Agent", type = "删除", description = "取消订单", recordParams = true)
+    @Transactional
     public String cancelOrder(@ToolParam(description = "订单ID，从getOrderList返回中获取") Long orderId) {
-        log.info("[OrderTool] cancelOrder: orderId={}", orderId);
         Order order = orderMapper.findById(orderId);
         if (order == null) return "订单不存在";
         int status = order.getOrderStatus() != null ? order.getOrderStatus() : -1;
@@ -122,5 +119,23 @@ public class OrderTool {
         if (!recoverList.isEmpty()) goodsMapper.recoverStock(recoverList);
         orderMapper.updateStatus(orderId, 4);
         return "订单 " + order.getOrderNo() + " 已取消，库存已恢复";
+    }
+
+    @Tool(description = "消费统计。统计用户已完成订单(状态3)的总金额、订单数、均价。period可选: today/yesterday/this_week/last_week/this_month/last_month/last_3_months/this_year，不传查全部")
+    @OperationLog(module = "Agent", type = "查询", description = "消费统计", recordParams = true)
+    public String getStats(
+            @ToolParam(description = "用户ID") Long userId,
+            @ToolParam(description = "时间范围: today/yesterday/this_week/last_week/this_month/last_month/last_3_months/this_year，不传查全部") String period) {
+        java.time.LocalDateTime[] range = assitant.utils.DateUtils.parsePeriod(period);
+        List<Order> orders = orderMapper.findByUserStatusAndTime(userId, 3,
+                range != null ? range[0] : null, range != null ? range[1] : null);
+        if (orders.isEmpty()) return "暂无已完成订单";
+
+        int total = orders.stream().mapToInt(o -> o.getTotalPrice() != null ? o.getTotalPrice() : 0).sum();
+        int count = orders.size();
+        String periodLabel = period != null ? period : "全部";
+        return "【" + periodLabel + "消费统计】\n"
+                + "已完成订单数: " + count + " 笔\n"
+                + "消费总额: " + total / 100.0 + " 元";
     }
 }

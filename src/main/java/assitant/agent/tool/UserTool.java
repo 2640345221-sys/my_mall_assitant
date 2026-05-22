@@ -19,18 +19,30 @@ public class UserTool {
     @Autowired
     private UserAddressMapper addressMapper;
 
-    @Tool(description = "获取用户个人信息，返回昵称/登录名等，密码已脱敏")
+    @Tool(description = "获取用户个人信息。触发时机：用户问'我的信息'时调用")
     @OperationLog(module = "Agent", type = "查询", description = "用户信息", recordParams = true)
-    public User getUserProfile(@ToolParam(description = "用户ID") Long userId) {
+    public String getUserProfile(@ToolParam(description = "用户ID") Long userId) {
         User user = userMapper.findById(userId);
+        if (user == null) return "用户不存在";
         if (user != null) user.setPassword(null);
-        return user;
+        return "昵称:" + user.getNickName() + " 登录名:" + user.getLoginName()
+                + " 签名:" + (user.getIntroduceSign() != null ? user.getIntroduceSign() : "");
     }
 
-    @Tool(description = "获取用户所有收货地址。返回的地址ID可用于createOrder下单")
+    @Tool(description = "获取用户收货地址列表。触发时机：下单前查地址时调用。返回每条地址的ID可用于createOrder")
     @OperationLog(module = "Agent", type = "查询", description = "收货地址列表", recordParams = true)
-    public List<UserAddress> getUserAddresses(@ToolParam(description = "用户ID") Long userId) {
-        return addressMapper.findByUserId(userId);
+    public String getUserAddresses(@ToolParam(description = "用户ID") Long userId) {
+        List<UserAddress> list = addressMapper.findByUserId(userId);
+        if (list.isEmpty()) return "暂无收货地址";
+        StringBuilder sb = new StringBuilder();
+        for (UserAddress a : list) {
+            sb.append("地址ID:").append(a.getId()).append(" ").append(a.getUsername())
+              .append(" ").append(a.getUserPhone()).append(" ")
+              .append(a.getProvince()).append(a.getCity()).append(a.getRegion())
+              .append(" ").append(a.getDetailAddress())
+              .append(a.getIsDefault() != null && a.getIsDefault() ? " [默认]" : "").append("\n");
+        }
+        return sb.toString();
     }
 
     @Tool(description = "新增收货地址。isDefault=true会把旧默认地址取消。返回新地址ID")

@@ -12,4 +12,7 @@ public interface OrderAddressMapper {
             "VALUES(#{username}, #{userPhone}, #{province}, #{city}, #{region}, #{detailAddress}, #{orderId})")
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(OrderAddress address);
+
+    @org.apache.ibatis.annotations.Delete("DELETE FROM my_mall.order_address WHERE order_id = #{orderId}")
+    int deleteByOrderId(Long orderId);
 }

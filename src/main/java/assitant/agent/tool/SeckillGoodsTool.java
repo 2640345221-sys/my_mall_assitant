@@ -17,9 +17,18 @@ public class SeckillGoodsTool {
     @Autowired
     private SeckillGoodsMapper seckillGoodsMapper;
 
-    @Tool(description = "获取正在进行的秒杀活动，返回活动ID/商品名/秒杀价/库存/时间段")
+    @Tool(description = "获取正在进行的秒杀活动。触发时机：用户说'秒杀''限时'时调用")
     @OperationLog(module = "Agent", type = "查询", description = "秒杀活动列表")
-    public List<SeckillGoods> getActiveList() {
-        return seckillGoodsMapper.findActiveSales(LocalDateTime.now());
+    public String getActiveList() {
+        List<SeckillGoods> list = seckillGoodsMapper.findActiveSales(LocalDateTime.now());
+        if (list.isEmpty()) return "暂无秒杀活动";
+        StringBuilder sb = new StringBuilder();
+        for (SeckillGoods s : list) {
+            sb.append("活动ID:").append(s.getId()).append(" 商品ID:").append(s.getGoodsId())
+              .append(" 秒杀价:").append(s.getSeckillPrice()).append("元")
+              .append(" 库存:").append(s.getStockCount())
+              .append(" 时间:").append(s.getStartTime()).append("~").append(s.getEndTime()).append("\n");
+        }
+        return sb.toString();
     }
 }

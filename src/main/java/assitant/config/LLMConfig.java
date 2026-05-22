@@ -18,7 +18,7 @@ public class LLMConfig {
     public ChatClient chatClient(DashScopeChatModel dashScopeChatModel) {
         return ChatClient.builder(dashScopeChatModel)
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
-                .defaultOptions(ChatOptions.builder().temperature(1.1).build())
+                .defaultOptions(ChatOptions.builder().temperature(0.3).build())
                 .build();
     }
 }

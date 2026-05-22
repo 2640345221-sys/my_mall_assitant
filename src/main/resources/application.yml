@@ -37,7 +37,7 @@ spring:
       api-key: ${kkek.dashscope.api-key}
       chat:
         options:
-          model: ${kkek.dashscope.model}
+          model: qwen-max
 mybatis:
   mapper-locations: classpath:mapper/*.xml
   type-aliases-package: assitant.entity.po

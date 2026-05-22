@@ -32,14 +32,17 @@ public class OrderTool {
     @Autowired
     private GoodsMapper goodsMapper;
 
-    @Tool(name = "createOrder", description = "为购物车中全部商品创建订单。调用前必须先确认用户要买哪些商品（全下还是部分）。addressId从getUserAddresses返回中获取。返回订单号和总金额")
+    @Tool(name = "createOrder", description = "为购物车中指定商品下单。goodsIds是商品编号列表，从推荐列表或getCart返回中获取。addressId从getUserAddresses返回中获取。内部自动查找对应的购物车条目")
     @Transactional(rollbackFor = Exception.class)
     @OperationLog(module = "Agent", type = "写入", description = "创建订单", recordParams = true)
     public String createOrder(
             @ToolParam(description = "用户ID") Long userId,
-            @ToolParam(description = "收货地址ID，从getUserAddresses返回中获取") Long addressId) {
-        List<ShoppingCart> cartItems = cartMapper.findByUserId(userId);
-        if (cartItems.isEmpty()) return "购物车为空，无法下单";
+            @ToolParam(description = "收货地址ID，从getUserAddresses返回中获取") Long addressId,
+            @ToolParam(description = "要下单的商品编号列表，如[10927, 10928]") List<Long> goodsIds) {
+        List<ShoppingCart> allItems = cartMapper.findByUserId(userId);
+        List<ShoppingCart> cartItems = allItems.stream()
+                .filter(c -> goodsIds.contains(c.getGoodsId())).toList();
+        if (cartItems.isEmpty()) return "购物车中没有这些商品，请先加入购物车";
         UserAddress addr = userAddressMapper.findByUserId(userId).stream()
                 .filter(a -> a.getId().equals(addressId)).findFirst().orElse(null);
         if (addr == null) return "收货地址不存在";
@@ -75,34 +78,58 @@ public class OrderTool {
                     .price(goods.getSellingPrice()).count(item.getGoodsCount()).build();
             orderItemMapper.insert(oi);
         }
-        for (ShoppingCart c : cartItems) cartMapper.deleteById(c.getId());
-        return "下单成功，订单号：" + orderNo + "，总金额：" + total / 100.0 + "元，共" + deductList.size() + "件商品";
+        for (ShoppingCart c : cartItems) cartMapper.deleteById(c.getId());  // 只删选中的
+        StringBuilder detail = new StringBuilder();
+        for (ShoppingCart item : cartItems) {
+            Goods g = goodsMapper.findById(item.getGoodsId());
+            if (g != null) detail.append(g.getName()).append("x").append(item.getGoodsCount()).append(" ");
+        }
+        return "下单成功 | 订单号:" + orderNo + " | 收件人:" + addr.getUsername()
+                + " | 电话:" + addr.getUserPhone() + " | 地址:" + addr.getProvince()
+                + addr.getCity() + addr.getRegion() + addr.getDetailAddress()
+                + " | 商品:" + detail.toString().trim()
+                + " | 金额:" + total / 100.0 + "元 | 状态:待支付";
     }
 
-    @Tool(description = "查询用户订单列表。status:0待支付1已支付2已发货3已完成4已取消，不传查全部")
+    @Tool(description = "查询用户订单列表。触发时机：用户说'我的订单''订单列表'时调用。status可选：0待支付1已支付2已发货3已完成4已取消，不传查全部")
     @OperationLog(module = "Agent", type = "查询", description = "订单列表", recordParams = true)
-    public List<Order> getOrderList(
-            @ToolParam(description = "用户ID") Long userId,
-            @ToolParam(description = "订单状态筛选：0待支付1已支付2已发货3已完成4已取消，不传查全部") Integer status) {
+    public String getOrderList(Long userId, Integer status) {
         List<Order> list;
         if (status != null) list = orderMapper.findByUserIdAndStatus(userId, status);
         else list = orderMapper.findByUserId(userId);
-        list.forEach(o -> o.setTotalPrice(o.getTotalPrice() / 100));
-        return list;
+        if (list.isEmpty()) return "暂无订单";
+        StringBuilder sb = new StringBuilder();
+        for (Order o : list) {
+            List<OrderItem> items = orderItemMapper.findByOrderId(o.getId());
+            String products = items.stream()
+                    .map(i -> i.getGoodsName() + "x" + i.getCount())
+                    .reduce((a, b) -> a + " " + b).orElse("");
+            String st = switch (o.getOrderStatus() != null ? o.getOrderStatus() : -1) {
+                case 0 -> "待支付"; case 1 -> "已支付"; case 2 -> "已发货";
+                case 3 -> "已完成"; case 4 -> "已取消"; default -> "未知"; };
+            sb.append("订单ID:").append(o.getId()).append(" 单号:").append(o.getOrderNo())
+              .append(" 商品:").append(products)
+              .append(" 金额:").append(o.getTotalPrice() / 100.0).append("元")
+              .append(" 状态:").append(st).append(" 时间:").append(o.getCreateTime()).append("\n");
+        }
+        return sb.toString();
     }
 
-    @Tool(description = "获取订单详情，包含商品明细")
+    @Tool(description = "获取订单详情及商品明细。触发时机：用户选定某个订单查看时调用。orderId从getOrderList返回中获取")
     @OperationLog(module = "Agent", type = "查询", description = "订单详情", recordParams = true)
-    public OrderDetailVO getOrderDetail(@ToolParam(description = "订单ID，从getOrderList返回中获取") Long orderId) {
+    public String getOrderDetail(Long orderId) {
         Order order = orderMapper.findById(orderId);
-        if (order == null) return null;
-        order.setTotalPrice(order.getTotalPrice() / 100);
+        if (order == null) return "订单不存在";
         List<OrderItem> items = orderItemMapper.findByOrderId(orderId);
-        items.forEach(i -> i.setPrice(i.getPrice() / 100));
-        OrderDetailVO vo = new OrderDetailVO();
-        vo.setOrder(order);
-        vo.setItems(items);
-        return vo;
+        StringBuilder sb = new StringBuilder();
+        sb.append("订单号:").append(order.getOrderNo())
+          .append(" 金额:").append(order.getTotalPrice() / 100.0).append("元")
+          .append(" 状态:").append(order.getOrderStatus()).append("\n商品明细:\n");
+        for (OrderItem item : items) {
+            sb.append("- ").append(item.getGoodsName()).append(" ×").append(item.getCount())
+              .append(" 单价:").append(item.getPrice() / 100.0).append("元\n");
+        }
+        return sb.toString();
     }
 
     @Tool(description = "取消订单，会恢复商品库存。只能取消待支付(0)和已支付(1)的订单")
@@ -118,6 +145,8 @@ public class OrderTool {
                 .map(item -> new StockDeductDTO(item.getGoodsId(), item.getCount())).toList();
         if (!recoverList.isEmpty()) goodsMapper.recoverStock(recoverList);
         orderMapper.updateStatus(orderId, 4);
+        orderItemMapper.deleteByOrderId(orderId);
+        orderAddressMapper.deleteByOrderId(orderId);
         return "订单 " + order.getOrderNo() + " 已取消，库存已恢复";
     }
 

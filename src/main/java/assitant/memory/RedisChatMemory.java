@@ -53,7 +53,7 @@ public class RedisChatMemory implements ChatMemory {
 
     @Override
     public List<Message> get(String conversationId) {
-        List<String> jsons = redis.opsForList().range(key(conversationId), 0, -1);
+        List<String> jsons = redis.opsForList().range(key(conversationId), -10, -1);
         if (jsons == null || jsons.isEmpty()) {
             return List.of();
         }

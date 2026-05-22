@@ -6,6 +6,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,8 @@ public class MallAgentService {
     @Autowired
     private SeckillGoodsTool seckillGoodsTool;
     @Autowired
+    private ReplyTool replyTool;
+    @Autowired
     private FaqTool faqTool;
     @Autowired
     private SystemPromptLoader systemPromptLoader;
@@ -45,9 +48,9 @@ public class MallAgentService {
         log.info("[Agent] chat: userId={}, conversationId={}, message={}", userId, conversationId, message);
         String reply = chatClient.prompt()
                 .system(systemPrompt)
-                .user("用户ID: " + userId + "\n用户消息: " + message)
+                .user("用户ID: " + userId + "\n[强制规则]回复前必须检查可用工具并调用]\n用户消息: " + message)
                 .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
-                .tools(goodsTool, cartTool, orderTool, userTool, seckillGoodsTool, faqTool)
+                .tools(goodsTool, cartTool, orderTool, userTool, seckillGoodsTool, faqTool, replyTool)
                 .call()
                 .content();
         log.info("[Agent] reply: {}", reply);
@@ -58,9 +61,9 @@ public class MallAgentService {
         log.info("[Agent] chatStream: userId={}, conversationId={}, message={}", userId, conversationId, message);
         return chatClient.prompt()
                 .system(systemPrompt)
-                .user("用户ID: " + userId + "\n用户消息: " + message)
+                .user("用户ID: " + userId + "\n[强制规则]回复前必须检查可用工具并调用]\n用户消息: " + message)
                 .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
-                .tools(goodsTool, cartTool, orderTool, userTool, seckillGoodsTool, faqTool)
+                .tools(goodsTool, cartTool, orderTool, userTool, seckillGoodsTool, faqTool, replyTool)
                 .stream()
                 .content()
                 .doOnNext(token -> log.debug("[Agent] token: {}", token))

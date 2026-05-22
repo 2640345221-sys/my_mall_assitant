@@ -40,16 +40,18 @@ public class OperationLogAspect {
             Object result = joinPoint.proceed();
             po.setExecutionTime(System.currentTimeMillis() - start);
             if (op.recordResult()) po.setResult(JSONDataUtils.formatResult(result));
-            log.info("操作日志 [{}] {} {} | 参数:{} | 耗时:{}ms | 结果:{}",
+            log.info("操作日志 [{}] {} {} | 耗时:{}ms{}{}",
                     po.getModule(), po.getType(), po.getDescription(),
-                    po.getParams(), po.getExecutionTime(), po.getResult());
+                    po.getExecutionTime(),
+                    po.getParams() != null ? " | 参数:" + po.getParams() : "",
+                    po.getResult() != null ? " | 结果:" + po.getResult() : "");
             return result;
         } catch (Throwable e) {
             po.setExecutionTime(System.currentTimeMillis() - start);
             po.setErrorMessage(e.getMessage());
-            log.error("操作失败 [{}] {} {} | 参数:{} | 耗时:{}ms | 错误:{}",
+            log.error("操作失败 [{}] {} {} | 耗时:{}ms | 错误:{}",
                     po.getModule(), po.getType(), po.getDescription(),
-                    po.getParams(), po.getExecutionTime(), e.getMessage());
+                    po.getExecutionTime(), e.getMessage());
             throw e;
         }
     }

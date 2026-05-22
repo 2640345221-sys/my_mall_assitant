@@ -18,4 +18,7 @@ public interface OrderItemMapper {
             "VALUES(#{orderId}, #{goodsId}, #{goodsName}, #{coverImg}, #{price}, #{count})")
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(OrderItem item);
+
+    @org.apache.ibatis.annotations.Delete("DELETE FROM my_mall.order_item WHERE order_id = #{orderId}")
+    int deleteByOrderId(Long orderId);
 }

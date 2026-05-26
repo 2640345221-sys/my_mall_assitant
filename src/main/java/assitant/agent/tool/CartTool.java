@@ -6,7 +6,7 @@ import assitant.entity.po.*;
 import assitant.mapper.*;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,11 +15,11 @@ import java.util.stream.Collectors;
 @Service
 public class CartTool {
 
-    @Autowired
+    @Resource
     private ShoppingCartMapper cartMapper;
 
     @Tool(description = "查看购物车。cartId是内部标识，展示给用户时只显示商品名/数量/单价，不要显示cartId。但记住cartId用于后续下单")
-    @OperationLog(module = "Agent", type = "查询", description = "查看购物车", recordParams = true)
+    @OperationLog(module = "Agent", type = "查询", description = "查看购物车")
     public String getCart(@ToolParam(description = "用户ID") Long userId) {
         List<CartItemVO> list = cartMapper.findByUserIdWithGoods(userId);
         if (list.isEmpty()) return "购物车为空";
@@ -30,8 +30,8 @@ public class CartTool {
                 .collect(Collectors.joining("\n"));
     }
 
-    @Tool(description = "加入购物车。触发时机：用户确认加购后调用。goodsId从getByName或上下文获取。count为用户指定数量")
-    @OperationLog(module = "Agent", type = "写入", description = "加入购物车", recordParams = true)
+    @Tool(description = "加入购物车。goodsId从上下文获取，count为用户指定数量")
+    @OperationLog(module = "Agent", type = "写入", description = "加入购物车")
     public String addToCart(Long userId, Long goodsId, Integer count) {
         ShoppingCart exist = cartMapper.findByUserIdAndGoodsId(userId, goodsId);
         if (exist != null) {
@@ -45,15 +45,15 @@ public class CartTool {
         return "已加入购物车";
     }
 
-    @Tool(description = "删除购物车条目。触发时机：用户说'删除''不要了'并确认后调用。cartItemId从getCart返回中获取")
-    @OperationLog(module = "Agent", type = "删除", description = "删除购物车条目", recordParams = true)
+    @Tool(description = "删除购物车条目。cartItemId从getCart返回中获取")
+    @OperationLog(module = "Agent", type = "删除", description = "删除购物车条目")
     public String removeFromCart(Long cartItemId) {
         cartMapper.deleteById(cartItemId);
         return "已从购物车删除";
     }
 
-    @Tool(description = "修改购物车数量。触发时机：用户说'改成3件'时调用。cartItemId从getCart返回中获取")
-    @OperationLog(module = "Agent", type = "修改", description = "修改购物车数量", recordParams = true)
+    @Tool(description = "修改购物车数量。cartItemId从getCart返回中获取")
+    @OperationLog(module = "Agent", type = "修改", description = "修改购物车数量")
     public String updateCartQuantity(Long cartItemId, Integer count) {
         cartMapper.updateCount(cartItemId, count);
         return "数量已更新";

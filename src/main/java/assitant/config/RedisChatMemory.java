@@ -1,12 +1,8 @@
-package assitant.memory;
+package assitant.config;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import assitant.entity.dto.MessageEntry;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -81,33 +77,4 @@ public class RedisChatMemory implements ChatMemory {
         return KEY_PREFIX + conversationId;
     }
 
-    /**
-     * 内部存储 DTO：只保留 type + text，避免 Jackson 多态反序列化问题
-     */
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    static class MessageEntry {
-        @JsonProperty("t")
-        private String type;
-        @JsonProperty("c")
-        private String text;
-
-        static MessageEntry from(Message msg) {
-            if (msg == null) return null;
-            String type = msg.getMessageType() != null ? msg.getMessageType().getValue() : "UNKNOWN";
-            return new MessageEntry(type, msg.getText());
-        }
-
-        Message toMessage() {
-            if (type == null) return null;
-            return switch (type.toUpperCase()) {
-                case "USER" -> new UserMessage(text != null ? text : "");
-                case "ASSISTANT" -> new AssistantMessage(text != null ? text : "");
-                case "SYSTEM" -> new SystemMessage(text != null ? text : "");
-                default -> null;
-            };
-        }
-    }
 }

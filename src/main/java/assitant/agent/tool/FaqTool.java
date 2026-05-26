@@ -4,13 +4,14 @@ import assitant.annotation.OperationLog;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.Resource;
 import lombok.Data;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
@@ -22,11 +23,11 @@ import java.util.Map;
 @Service
 public class FaqTool {
 
-    @Autowired
+    @Resource
     @Qualifier("faqVectorStore")
     private VectorStore vectorStore;
-
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    @Resource
+    private ObjectMapper objectMapper;
 
     @Data
     public static class FaqEntry {
@@ -56,7 +57,7 @@ public class FaqTool {
     }
 
     @Tool(description = "搜索FAQ知识库，回答退换货、发货、支付、售后等常见问题")
-    @OperationLog(module = "Agent", type = "查询", description = "FAQ搜索", recordParams = true)
+    @OperationLog(module = "Agent", type = "查询", description = "FAQ搜索")
     public String ask(@ToolParam(description = "用户的问题，如'怎么退货'、'几天到货'等") String query) {
         List<Document> docs = vectorStore.similaritySearch(
                 SearchRequest.builder().query(query).topK(2).similarityThreshold(0.3).build());

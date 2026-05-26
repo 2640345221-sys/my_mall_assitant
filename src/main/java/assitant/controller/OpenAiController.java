@@ -7,7 +7,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.annotation.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
@@ -18,9 +18,9 @@ import java.util.UUID;
 @RequestMapping("/v1")
 public class OpenAiController {
 
-    @Autowired
+    @Resource
     private MallAgentService agentService;
-    @Autowired
+    @Resource
     private ObjectMapper objectMapper;
 
     @PostMapping("/chat/completions")

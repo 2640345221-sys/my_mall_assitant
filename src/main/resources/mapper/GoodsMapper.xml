@@ -3,35 +3,61 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="assitant.mapper.GoodsMapper">
 
+    <select id="findById" resultType="assitant.entity.po.Goods">
+        select * from my_mall.goods where id = #{id}
+    </select>
+
+    <select id="searchByKeyword" resultType="assitant.entity.po.Goods">
+        select * from my_mall.goods where name like concat('%', #{keyword}, '%')
+    </select>
+
+    <select id="findByCategoryId" resultType="assitant.entity.po.Goods">
+        select * from my_mall.goods where category_id = #{categoryId}
+    </select>
+
+    <select id="findByPriceRange" resultType="assitant.entity.po.Goods">
+        select * from my_mall.goods where selling_price between #{minPrice} and #{maxPrice}
+    </select>
+
     <select id="searchByKeywordAndPriceRange" resultType="assitant.entity.po.Goods">
         select * from my_mall.goods
         <where>
-            <if test="keyword!=null and keyword!=''">
-                and name like concat('%',#{keyword},'%')
+            <if test="keyword != null and keyword != ''">
+                and name like concat('%', #{keyword}, '%')
             </if>
-            <if test="minPrice!=null">
-                and selling_price &gt;=#{minPrice}
+            <if test="minPrice != null">
+                and selling_price &gt;= #{minPrice}
             </if>
-            <if test="maxPrice!=null">
-                and selling_price &lt;=#{maxPrice}
+            <if test="maxPrice != null">
+                and selling_price &lt;= #{maxPrice}
             </if>
         </where>
     </select>
 
+    <select id="findLatest" resultType="assitant.entity.po.Goods">
+        select * from my_mall.goods where sell_status = 0 order by create_time desc limit #{limit}
+    </select>
+
+    <select id="getAll" resultType="assitant.entity.po.Goods">
+        select * from my_mall.goods where sell_status = 0
+    </select>
+
+    <select id="getSelling" resultType="assitant.entity.po.Goods">
+        select * from my_mall.goods where sell_status = 0
+    </select>
+
     <update id="deductStock">
         <foreach collection="list" item="item" separator=";">
-            UPDATE my_mall.goods
-            SET stock_num = stock_num - #{item.count}
-            WHERE id = #{item.id}
-              AND stock_num >= #{item.count}
+            update my_mall.goods set stock_num = stock_num - #{item.count}
+            where id = #{item.id} and stock_num >= #{item.count}
         </foreach>
     </update>
 
     <update id="recoverStock">
         <foreach collection="list" item="item" separator=";">
-            UPDATE my_mall.goods
-            SET stock_num = stock_num + #{item.count}
-            WHERE id = #{item.id}
+            update my_mall.goods set stock_num = stock_num + #{item.count}
+            where id = #{item.id}
         </foreach>
     </update>
+
 </mapper>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="assitant.mapper.OrderAddressMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into my_mall.order_address(username, user_phone, province, city, region, detail_address, order_id)
+        values(#{username}, #{userPhone}, #{province}, #{city}, #{region}, #{detailAddress}, #{orderId})
+    </insert>
+
+    <delete id="deleteByOrderId">
+        delete from my_mall.order_address where order_id = #{orderId}
+    </delete>
+
+    <select id="findByOrderId" resultType="assitant.entity.po.OrderAddress">
+        select * from my_mall.order_address where order_id = #{orderId}
+    </select>
+
+</mapper>

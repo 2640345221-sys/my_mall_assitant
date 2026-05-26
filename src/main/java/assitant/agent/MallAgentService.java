@@ -7,7 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.prompt.ChatOptions;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -16,24 +16,24 @@ import reactor.core.publisher.Flux;
 @Service
 public class MallAgentService {
 
-    @Autowired
+    @Resource
     private ChatClient chatClient;
 
-    @Autowired
+    @Resource
     private GoodsTool goodsTool;
-    @Autowired
+    @Resource
     private CartTool cartTool;
-    @Autowired
+    @Resource
     private OrderTool orderTool;
-    @Autowired
+    @Resource
     private UserTool userTool;
-    @Autowired
+    @Resource
     private SeckillGoodsTool seckillGoodsTool;
-    @Autowired
+    @Resource
     private ReplyTool replyTool;
-    @Autowired
+    @Resource
     private FaqTool faqTool;
-    @Autowired
+    @Resource
     private SystemPromptLoader systemPromptLoader;
 
     private String systemPrompt;

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="assitant.mapper.SeckillGoodsMapper">
+
+    <select id="findById" resultType="assitant.entity.po.SeckillGoods">
+        select * from my_mall.seckill_goods where id = #{id}
+    </select>
+
+    <select id="findActiveSales" resultType="assitant.entity.po.SeckillGoods">
+        select * from my_mall.seckill_goods where status = 1 and start_time &lt;= #{now} and end_time &gt;= #{now}
+    </select>
+
+    <update id="decreaseStock">
+        update my_mall.seckill_goods set stock_count = stock_count - #{count}
+        where id = #{id} and stock_count >= #{count}
+    </update>
+
+</mapper>

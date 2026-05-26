@@ -1,11 +1,17 @@
 package assitant.utils;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.SneakyThrows;
+import org.springframework.stereotype.Component;
 
+@Component
 public class JSONDataUtils {
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+
+    private static ObjectMapper objectMapper;
+
+    public JSONDataUtils(ObjectMapper objectMapper) {
+        JSONDataUtils.objectMapper = objectMapper;
+    }
 
     @SneakyThrows
     public static String formatParams(Object[] args) {
@@ -13,7 +19,7 @@ public class JSONDataUtils {
         Object[] filtered = java.util.stream.Stream.of(args)
                 .filter(arg -> arg != null)
                 .toArray();
-        if (filtered.length == 0) return "【无参数】";
+        if (filtered.length == 0) return "无参数";
         Object toSerialize = filtered.length == 1 ? filtered[0] : filtered;
         return objectMapper.writeValueAsString(toSerialize);
     }

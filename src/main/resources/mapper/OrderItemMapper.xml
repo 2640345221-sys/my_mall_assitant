@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="assitant.mapper.OrderItemMapper">
+
+    <select id="findByOrderId" resultType="assitant.entity.po.OrderItem">
+        select * from my_mall.order_item where order_id = #{orderId}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into my_mall.order_item(order_id, goods_id, goods_name, cover_img, price, count)
+        values(#{orderId}, #{goodsId}, #{goodsName}, #{coverImg}, #{price}, #{count})
+    </insert>
+
+    <delete id="deleteByOrderId">
+        delete from my_mall.order_item where order_id = #{orderId}
+    </delete>
+
+</mapper>

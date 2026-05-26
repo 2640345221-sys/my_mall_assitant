@@ -3,7 +3,7 @@ package assitant.controller;
 import assitant.agent.MallAgentService;
 import assitant.entity.dto.ChatRequest;
 import assitant.entity.dto.ChatResponse;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.annotation.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -12,7 +12,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RequestMapping("/chat")
 public class ChatController {
 
-    @Autowired
+    @Resource
     private MallAgentService agentService;
 
 

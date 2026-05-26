@@ -1,13 +1,13 @@
 <script setup>
-import { ref, nextTick, onMounted } from 'vue'
+import { ref, nextTick, onMounted, watch } from 'vue'
 
 const STORAGE_KEY = 'mall_chat_conversation_id'
-
 const userId = ref('1')
 const input = ref('')
 const messages = ref([])
 const streaming = ref(false)
 const conversationId = ref('')
+const msgList = ref(null)
 
 onMounted(() => {
   const saved = localStorage.getItem(STORAGE_KEY)
@@ -15,80 +15,91 @@ onMounted(() => {
   if (!saved) localStorage.setItem(STORAGE_KEY, conversationId.value)
 })
 
+watch(messages, () => nextTick(() => {
+  if (msgList.value) msgList.value.scrollTop = msgList.value.scrollHeight
+}), { deep: true })
+
 function newConversation() {
   messages.value = []
-  const id = crypto.randomUUID()
-  conversationId.value = id
-  localStorage.setItem(STORAGE_KEY, id)
+  conversationId.value = crypto.randomUUID()
+  localStorage.setItem(STORAGE_KEY, conversationId.value)
 }
 
 async function send() {
   const msg = input.value.trim()
   if (!msg || streaming.value) return
   input.value = ''
-
   messages.value.push({ role: 'user', content: msg })
-  const assistantIndex = messages.value.length // 新消息的索引
+  const idx = messages.value.length
   messages.value.push({ role: 'assistant', content: '' })
   streaming.value = true
 
   try {
     const resp = await fetch('/chat/stream', {
-      method: 'POST',  // 注意大写
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: userId.value,
-        message: msg,
-        conversationId: conversationId.value
-      })
+      body: JSON.stringify({ userId: userId.value, message: msg, conversationId: conversationId.value })
     })
-
     const reader = resp.body.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
-
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
       buffer += decoder.decode(value, { stream: true })
-
       const events = buffer.split('\n\n')
       buffer = events.pop() || ''
-
       for (const event of events) {
-        const lines = event.split('\n')
-            .filter(l => l.startsWith('data:'))
-            .map(l => l.slice(5))
+        const lines = event.split('\n').filter(l => l.startsWith('data:')).map(l => l.slice(5))
         if (lines.length > 0) {
-          messages.value[assistantIndex].content += lines.join('\n')
+          messages.value[idx].content += lines.join('\n')
           await nextTick()
         }
       }
     }
-  } catch (e) {
-    messages.value[assistantIndex].content = '请求失败: ' + e.message
-  } finally {
-    streaming.value = false
+    } catch (e) {
+      messages.value[idx].content = '请求失败: ' + e.message
+      messages.value[idx].failed = true
+      messages.value[idx].lastMsg = msg
+    } finally {
+      streaming.value = false
+    }
   }
-}
+
+  function resend(lastMsg) {
+    messages.value.pop()
+    input.value = lastMsg
+    send()
+  }
 </script>
 
 <template>
+  <div class="header">
+    <div class="dot"></div>
+    <span>商城智能助手</span>
+  </div>
+
   <div class="messages" ref="msgList">
-    <div v-for="(m, i) in messages" :key="i" :class="['msg', m.role]">
-      {{ m.content }}
+    <div v-if="messages.length === 0" class="welcome">
+      <p>你好！我是商城助手，可以帮您搜索商品、管理购物车、下单</p>
+    </div>
+    <div v-for="(m, i) in messages" :key="i" :class="['msg-row', m.role]">
+      <div class="msg-avatar">{{ m.role === 'user' ? '我' : 'AI' }}</div>
+      <div class="msg-bubble">
+        {{ m.content }}
+        <button v-if="m.failed" @click="resend(m.lastMsg)" class="retry-btn">重新发送</button>
+        <div v-if="streaming && i === messages.length-1 && m.content === ''" class="typing">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
     </div>
   </div>
 
   <div class="input-area">
-    <input v-model="userId" placeholder="用户ID" style="width:80px;margin-right:4px" />
-    <button @click="newConversation" :disabled="streaming" style="background:#999;margin-right:4px">新对话</button>
-    <input
-      v-model="input"
-      @keyup.enter="send"
-      placeholder="输入消息..."
-      :disabled="streaming"
-    />
-    <button @click="send" :disabled="streaming || !input.trim()">发送</button>
+    <button class="btn-new" @click="newConversation" :disabled="streaming">新对话</button>
+    <span style="font-size:13px;color:#888;white-space:nowrap">用户ID:</span>
+    <input v-model="userId" placeholder="用户ID" />
+    <input v-model="input" @keyup.enter="send" placeholder="输入消息..." :disabled="streaming" />
+    <button class="btn-send" @click="send" :disabled="streaming || !input.trim()">发送</button>
   </div>
 </template>

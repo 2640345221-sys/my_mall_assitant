@@ -5,7 +5,7 @@ import assitant.entity.po.*;
 import assitant.mapper.*;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -14,10 +14,10 @@ import java.util.List;
 @Service
 public class SeckillGoodsTool {
 
-    @Autowired
+    @Resource
     private SeckillGoodsMapper seckillGoodsMapper;
 
-    @Tool(description = "获取正在进行的秒杀活动。触发时机：用户说'秒杀''限时'时调用")
+    @Tool(description = "获取正在进行的秒杀活动")
     @OperationLog(module = "Agent", type = "查询", description = "秒杀活动列表")
     public String getActiveList() {
         List<SeckillGoods> list = seckillGoodsMapper.findActiveSales(LocalDateTime.now());

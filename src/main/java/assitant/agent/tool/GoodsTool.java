@@ -11,7 +11,7 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import redis.clients.jedis.JedisPooled;
@@ -24,14 +24,14 @@ import java.util.stream.Collectors;
 @Service
 public class GoodsTool {
 
-    @Autowired
+    @Resource
     private GoodsMapper goodsMapper;
-    @Autowired
+    @Resource
     private GoodsCategoryMapper categoryMapper;
-    @Autowired
+    @Resource
     @Qualifier("goodsVectorStore")
     private VectorStore vectorStore;
-    @Autowired
+    @Resource
     private JedisPooled jedisPooled;
 
     @PostConstruct
@@ -54,20 +54,18 @@ public class GoodsTool {
                 batch.add(new Document(text));
             }
             vectorStore.add(batch);
-            count += batch.size();
-            log.info("向量索引进度: {}/{}", count, goodsList.size());
         }
-        log.info("向量索引完成, 共{}件商品", count);
+        log.info("向量索引完成, 共{}件商品", goodsList.size());
     }
 
-    @OperationLog(module = "RAG", type = "搜索", description = "向量语义搜索", recordParams = true)
+    @OperationLog(module = "RAG", type = "搜索", description = "向量语义搜索")
     public List<Document> getGoodsList(String query) {
         return vectorStore.similaritySearch(
                 SearchRequest.builder().query(query).topK(6).similarityThreshold(0.3).build());
     }
 
-    @Tool(description = "语义推荐商品。触发时机：用户有模糊需求（送女友/学生党/办公）或精确搜索失败时调用。返回按相似度排序的商品列表")
-    @OperationLog(module = "Agent", type = "查询", description = "语义推荐", recordParams = true, recordResult = true)
+    @Tool(description = "语义推荐商品，返回按相似度排序的商品列表")
+    @OperationLog(module = "Agent", type = "查询", description = "语义推荐", recordResult = true)
     public String semanticRecommend(
             @ToolParam(description = "用户的购买需求或使用场景") String query) {
         List<Document> docs = getGoodsList(query);
@@ -77,7 +75,7 @@ public class GoodsTool {
             String goodsId = null;
             if (doc.getText() != null) {
                 int s = doc.getText().indexOf("【ID:");
-                int e = doc.getText().indexOf("】", s);
+                int e = doc.getText().indexOf("】");
                 if (s >= 0 && e > s) goodsId = doc.getText().substring(s + 4, e);
             }
             if (goodsId == null) continue;
@@ -91,8 +89,8 @@ public class GoodsTool {
         return sb.toString();
     }
 
-    @Tool(description = "根据商品ID获取详情。触发时机：用户说'第一个的详情''看看这个'时调用。goodsId从上下文或getByName返回中获取，不可编造")
-    @OperationLog(module = "Agent", type = "查询", description = "商品详情", recordParams = true)
+    @Tool(description = "根据商品ID获取详情。goodsId从上下文获取，不可编造")
+    @OperationLog(module = "Agent", type = "查询", description = "商品详情")
     public String getDetail(Long goodsId) {
         Goods g = goodsMapper.findById(goodsId);
         if (g == null) return "商品不存在";
@@ -110,8 +108,8 @@ public class GoodsTool {
                 .collect(Collectors.joining("\n"));
     }
 
-    @Tool(description = "按分类ID获取商品列表。触发时机：用户说'手机分类''看看美妆'时调用")
-    @OperationLog(module = "Agent", type = "查询", description = "按分类获取商品", recordParams = true)
+    @Tool(description = "按分类ID获取商品列表")
+    @OperationLog(module = "Agent", type = "查询", description = "按分类获取商品")
     public String getByCategory(Long categoryId) {
         List<Goods> result = goodsMapper.findByCategoryId(categoryId);
         if (!result.isEmpty()) return formatGoodsList(result);
@@ -120,8 +118,9 @@ public class GoodsTool {
         List<Goods> all = new ArrayList<>();
         for (GoodsCategory child : children) {
             List<Goods> sub = goodsMapper.findByCategoryId(child.getId());
-            if (sub != null) all.addAll(sub);
-            if (all.isEmpty()) {
+            if (sub != null && !sub.isEmpty()) {
+                all.addAll(sub);
+            } else {
                 for (GoodsCategory gc : categoryMapper.findByParentId(child.getId())) {
                     List<Goods> gcs = goodsMapper.findByCategoryId(gc.getId());
                     if (gcs != null) all.addAll(gcs);
@@ -132,8 +131,9 @@ public class GoodsTool {
     }
 
     @Tool(description = "获取最新上架商品。触发时机：用户说'最新'、'新品'时调用")
-    @OperationLog(module = "Agent", type = "查询", description = "最新上架", recordParams = true)
+    @OperationLog(module = "Agent", type = "查询", description = "最新上架")
     public String getLatest(Integer limit) {
+        List<Goods> list= goodsMapper.findLatest(limit);
         return formatGoodsList(goodsMapper.findLatest(limit));
     }
 

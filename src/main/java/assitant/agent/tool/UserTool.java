@@ -5,7 +5,7 @@ import assitant.entity.po.*;
 import assitant.mapper.*;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,13 +14,13 @@ import java.util.List;
 @Service
 public class UserTool {
 
-    @Autowired
+    @Resource
     private UserMapper userMapper;
-    @Autowired
+    @Resource
     private UserAddressMapper addressMapper;
 
-    @Tool(description = "获取用户个人信息。触发时机：用户问'我的信息'时调用")
-    @OperationLog(module = "Agent", type = "查询", description = "用户信息", recordParams = true)
+    @Tool(description = "获取用户个人信息")
+    @OperationLog(module = "Agent", type = "查询", description = "用户信息")
     public String getUserProfile(@ToolParam(description = "用户ID") Long userId) {
         User user = userMapper.findById(userId);
         if (user == null) return "用户不存在";
@@ -29,8 +29,8 @@ public class UserTool {
                 + " 签名:" + (user.getIntroduceSign() != null ? user.getIntroduceSign() : "");
     }
 
-    @Tool(description = "获取用户收货地址列表。触发时机：下单前查地址时调用。返回每条地址的ID可用于createOrder")
-    @OperationLog(module = "Agent", type = "查询", description = "收货地址列表", recordParams = true)
+    @Tool(description = "获取用户收货地址列表，返回每条地址的ID可用于createOrder")
+    @OperationLog(module = "Agent", type = "查询", description = "收货地址列表")
     public String getUserAddresses(@ToolParam(description = "用户ID") Long userId) {
         List<UserAddress> list = addressMapper.findByUserId(userId);
         if (list.isEmpty()) return "暂无收货地址";
@@ -47,7 +47,7 @@ public class UserTool {
 
     @Tool(description = "新增收货地址。isDefault=true会把旧默认地址取消。返回新地址ID")
     @Transactional
-    @OperationLog(module = "Agent", type = "写入", description = "新增地址", recordParams = true)
+    @OperationLog(module = "Agent", type = "写入", description = "新增地址")
     public String addAddress(
             @ToolParam(description = "用户ID") Long userId,
             @ToolParam(description = "收件人姓名") String username,
@@ -75,7 +75,7 @@ public class UserTool {
 
     @Tool(description = "修改已有收货地址。只需传要修改的字段，不传则保留原值。addressId从getUserAddresses返回的id获取")
     @Transactional
-    @OperationLog(module = "Agent", type = "修改", description = "修改地址", recordParams = true)
+    @OperationLog(module = "Agent", type = "修改", description = "修改地址")
     public String updateAddress(
             @ToolParam(description = "地址ID，从getUserAddresses返回的id获取") Long addressId,
             @ToolParam(description = "用户ID") Long userId,

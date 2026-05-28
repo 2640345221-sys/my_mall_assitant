@@ -17,7 +17,7 @@ public class SeckillGoodsTool {
     @Resource
     private SeckillGoodsMapper seckillGoodsMapper;
 
-    @Tool(description = "获取正在进行的秒杀活动")
+    @Tool(description = "获取当前正在进行的秒杀活动列表。返回 活动ID、商品ID、秒杀价、库存、时间段。当用户说秒杀，限时，特价时调用")
     @OperationLog(module = "Agent", type = "查询", description = "秒杀活动列表")
     public String getActiveList() {
         List<SeckillGoods> list = seckillGoodsMapper.findActiveSales(LocalDateTime.now());

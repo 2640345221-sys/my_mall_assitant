@@ -17,4 +17,25 @@
         where c.user_id = #{userId}
     </select>
 
+    <select id="findByUserId" resultType="assitant.entity.po.ShoppingCart">
+        select * from my_mall.shopping_cart where user_id = #{userId}
+    </select>
+
+    <select id="findByUserIdAndGoodsId" resultType="assitant.entity.po.ShoppingCart">
+        select * from my_mall.shopping_cart where user_id = #{userId} and goods_id = #{goodsId}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into my_mall.shopping_cart(user_id, goods_id, goods_count)
+        values(#{userId}, #{goodsId}, #{goodsCount})
+    </insert>
+
+    <delete id="deleteById">
+        delete from my_mall.shopping_cart where id = #{id}
+    </delete>
+
+    <update id="updateCount">
+        update my_mall.shopping_cart set goods_count = #{count} where id = #{id}
+    </update>
+
 </mapper>

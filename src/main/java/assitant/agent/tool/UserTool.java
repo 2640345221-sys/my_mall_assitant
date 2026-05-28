@@ -19,7 +19,7 @@ public class UserTool {
     @Resource
     private UserAddressMapper addressMapper;
 
-    @Tool(description = "获取用户个人信息")
+    @Tool(description = "获取用户个人信息（昵称、登录名、签名）")
     @OperationLog(module = "Agent", type = "查询", description = "用户信息")
     public String getUserProfile(@ToolParam(description = "用户ID") Long userId) {
         User user = userMapper.findById(userId);
@@ -29,7 +29,7 @@ public class UserTool {
                 + " 签名:" + (user.getIntroduceSign() != null ? user.getIntroduceSign() : "");
     }
 
-    @Tool(description = "获取用户收货地址列表，返回每条地址的ID可用于createOrder")
+    @Tool(description = "获取用户收货地址列表。返回格式: 地址ID:XXX 收件人 电话 省市区 详细地址 [默认]。地址ID用于 createOrder/updateAddress，必须从本方法返回结果中获取，禁止编造")
     @OperationLog(module = "Agent", type = "查询", description = "收货地址列表")
     public String getUserAddresses(@ToolParam(description = "用户ID") Long userId) {
         List<UserAddress> list = addressMapper.findByUserId(userId);
@@ -45,7 +45,7 @@ public class UserTool {
         return sb.toString();
     }
 
-    @Tool(description = "新增收货地址。isDefault=true会把旧默认地址取消。返回新地址ID")
+    @Tool(description = "新增收货地址。isDefault=true 会将旧默认地址取消。收件人和电话为必填")
     @Transactional
     @OperationLog(module = "Agent", type = "写入", description = "新增地址")
     public String addAddress(
@@ -73,18 +73,18 @@ public class UserTool {
         return "地址添加成功, id=" + addr.getId();
     }
 
-    @Tool(description = "修改已有收货地址。只需传要修改的字段，不传则保留原值。addressId从getUserAddresses返回的id获取")
+    @Tool(description = "修改已有收货地址。addressId 必须且只能从 getUserAddresses 返回结果中的地址ID获取。只需传要修改的字段，不传则保留原值")
     @Transactional
     @OperationLog(module = "Agent", type = "修改", description = "修改地址")
     public String updateAddress(
-            @ToolParam(description = "地址ID，从getUserAddresses返回的id获取") Long addressId,
+            @ToolParam(description = "地址ID，从getUserAddresses返回结果中获取") Long addressId,
             @ToolParam(description = "用户ID") Long userId,
-            @ToolParam(description = "收件人姓名，不传不变") String username,
-            @ToolParam(description = "收件人手机号，不传不变") String phone,
-            @ToolParam(description = "省份，不传不变") String province,
-            @ToolParam(description = "城市，不传不变") String city,
-            @ToolParam(description = "区/县，不传不变") String region,
-            @ToolParam(description = "详细地址，不传不变") String detail,
+            @ToolParam(description = "收件人姓名，不传则保持不变") String username,
+            @ToolParam(description = "收件人手机号，不传则保持不变") String phone,
+            @ToolParam(description = "省份，不传则保持不变") String province,
+            @ToolParam(description = "城市，不传则保持不变") String city,
+            @ToolParam(description = "区/县，不传则保持不变") String region,
+            @ToolParam(description = "详细地址，不传则保持不变") String detail,
             @ToolParam(description = "是否设为默认地址") Boolean isDefault) {
         UserAddress addr = addressMapper.findByUserId(userId).stream()
                 .filter(a -> a.getId().equals(addressId)).findFirst().orElse(null);

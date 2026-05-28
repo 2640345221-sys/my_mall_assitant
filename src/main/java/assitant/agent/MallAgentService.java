@@ -1,73 +1,56 @@
 package assitant.agent;
 
-import assitant.agent.tool.*;
-import assitant.utils.SystemPromptLoader;
-import jakarta.annotation.PostConstruct;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.ai.chat.prompt.ChatOptions;
+import assitant.annotation.OperationLog;
+import com.alibaba.cloud.ai.graph.RunnableConfig;
+import com.alibaba.cloud.ai.graph.agent.ReactAgent;
 import jakarta.annotation.Resource;
-import org.springframework.beans.factory.annotation.Qualifier;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
+
+import java.util.Objects;
 
 @Slf4j
 @Service
 public class MallAgentService {
 
     @Resource
-    private ChatClient chatClient;
+    private ReactAgent mallReactAgent;
 
-    @Resource
-    private GoodsTool goodsTool;
-    @Resource
-    private CartTool cartTool;
-    @Resource
-    private OrderTool orderTool;
-    @Resource
-    private UserTool userTool;
-    @Resource
-    private SeckillGoodsTool seckillGoodsTool;
-    @Resource
-    private ReplyTool replyTool;
-    @Resource
-    private FaqTool faqTool;
-    @Resource
-    private SystemPromptLoader systemPromptLoader;
-
-    private String systemPrompt;
-
-    @PostConstruct
-    public void init() {
-        this.systemPrompt = systemPromptLoader.getSystemPrompt();
-        log.info("[Agent] SystemPrompt 已加载, 长度={}", systemPrompt.length());
-    }
-
+    @OperationLog(module = "Agent", type = "对话", description = "同步聊天", recordResult = true)
     public String chat(String userId, String conversationId, String message) {
-        log.info("[Agent] chat: userId={}, conversationId={}, message={}", userId, conversationId, message);
-        String reply = chatClient.prompt()
-                .system(systemPrompt)
-                .user("用户ID: " + userId + "\n[强制规则]回复前必须检查可用工具并调用]\n用户消息: " + message)
-                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
-                .tools(goodsTool, cartTool, orderTool, userTool, seckillGoodsTool, faqTool, replyTool)
-                .call()
-                .content();
-        log.info("[Agent] reply: {}", reply);
-        return reply;
+        try {
+            Message lastMsg = mallReactAgent.streamMessages(
+                            new UserMessage("用户ID: " + userId + "\n用户消息: " + message),
+                            RunnableConfig.builder().threadId(conversationId).build())
+                    .filter(m -> m instanceof AssistantMessage)
+                    .blockLast();
+            if (lastMsg instanceof AssistantMessage am) {
+                String text = am.getText();
+                return text != null ? text : "";
+            }
+        } catch (Exception e) {
+            log.error("[Agent] chat error", e);
+        }
+        return "抱歉，处理出错了，请稍后重试。";
     }
 
+    @OperationLog(module = "Agent", type = "对话", description = "流式聊天", recordResult = true)
     public Flux<String> chatStream(String userId, String conversationId, String message) {
-        log.info("[Agent] chatStream: userId={}, conversationId={}, message={}", userId, conversationId, message);
-        return chatClient.prompt()
-                .system(systemPrompt)
-                .user("用户ID: " + userId + "\n[强制规则]回复前必须检查可用工具并调用]\n用户消息: " + message)
-                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
-                .tools(goodsTool, cartTool, orderTool, userTool, seckillGoodsTool, faqTool, replyTool)
-                .stream()
-                .content()
-                .doOnNext(token -> log.debug("[Agent] token: {}", token))
-                .doOnComplete(() -> log.info("[Agent] stream complete"))
-                .doOnError(e -> log.error("[Agent] stream error", e));
+        try {
+            return mallReactAgent.streamMessages(
+                            new UserMessage("用户ID: " + userId + "\n用户消息: " + message),
+                            RunnableConfig.builder().threadId(conversationId).build())
+                    .filter(m -> m instanceof AssistantMessage)
+                    .map(m -> ((AssistantMessage) m).getText())
+                    .filter(Objects::nonNull)
+                    .doOnError(e -> log.error("[Agent] stream error", e));
+        } catch (Exception e) {
+            log.error("[Agent] chatStream error", e);
+            return Flux.error(e);
+        }
     }
 }

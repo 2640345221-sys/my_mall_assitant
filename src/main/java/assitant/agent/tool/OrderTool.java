@@ -32,13 +32,13 @@ public class OrderTool {
     @Resource
     private GoodsMapper goodsMapper;
 
-    @Tool(name = "createOrder", description = "为购物车中指定商品下单。goodsIds是商品编号列表，从推荐列表或getCart返回中获取。addressId从getUserAddresses返回中获取。内部自动查找对应的购物车条目")
+    @Tool(name = "createOrder", description = "创建订单。前置流程：①先调getCart确认购物车有商品 ②再调getUserAddresses获取收货地址 ③向用户展示确认清单（商品名×数量、总金额、收货地址） ④获得用户明确确认后，才调用本方法。goodsIds从getCart返回的goodsId中取，addressId从getUserAddresses返回的地址ID中取。两个ID都禁止编造")
     @Transactional(rollbackFor = Exception.class)
     @OperationLog(module = "Agent", type = "写入", description = "创建订单")
     public String createOrder(
             @ToolParam(description = "用户ID") Long userId,
-            @ToolParam(description = "收货地址ID，从getUserAddresses返回中获取") Long addressId,
-            @ToolParam(description = "要下单的商品编号列表") List<Long> goodsIds) {
+            @ToolParam(description = "收货地址ID，从getUserAddresses返回结果中获取") Long addressId,
+            @ToolParam(description = "要下单的商品ID列表，从getCart或商品推荐返回结果中获取") List<Long> goodsIds) {
         List<ShoppingCart> allItems = cartMapper.findByUserId(userId);
         List<ShoppingCart> cartItems = allItems.stream()
                 .filter(c -> goodsIds.contains(c.getGoodsId())).toList();
@@ -78,7 +78,7 @@ public class OrderTool {
                     .price(goods.getSellingPrice()).count(item.getGoodsCount()).build();
             orderItemMapper.insert(oi);
         }
-        for (ShoppingCart c : cartItems) cartMapper.deleteById(c.getId());  // 只删选中的
+        for (ShoppingCart c : cartItems) cartMapper.deleteById(c.getId());
         StringBuilder detail = new StringBuilder();
         for (ShoppingCart item : cartItems) {
             Goods g = goodsMapper.findById(item.getGoodsId());
@@ -91,12 +91,10 @@ public class OrderTool {
                 + " | 金额:" + total / 100.0 + "元 | 状态:待支付";
     }
 
-    @Tool(description = "查询用户订单列表。status可选：0待支付1已支付2配货完成3出库成功4交易成功-1关闭订单，不传查全部")
+    @Tool(description = "查询用户全部订单列表。返回每条订单的ID、单号、商品摘要、金额、状态、时间")
     @OperationLog(module = "Agent", type = "查询", description = "订单列表")
-    public String getOrderList(Long userId, Integer status) {
-        List<Order> list;
-        if (status != null) list = orderMapper.findByUserIdAndStatus(userId, status);
-        else list = orderMapper.findByUserId(userId);
+    public String getOrderList(Long userId) {
+        List<Order> list = orderMapper.findByUserId(userId);
         if (list.isEmpty()) return "暂无订单";
         StringBuilder sb = new StringBuilder();
         for (Order o : list) {
@@ -116,7 +114,7 @@ public class OrderTool {
         return sb.toString();
     }
 
-    @Tool(description = "获取订单详情及商品明细。orderId从getOrderList返回中获取")
+    @Tool(description = "获取订单详情及商品明细。orderId 必须且只能从 getOrderList 返回结果中的订单ID获取")
     @OperationLog(module = "Agent", type = "查询", description = "订单详情")
     public String getOrderDetail(Long orderId) {
         Order order = orderMapper.findById(orderId);
@@ -144,10 +142,10 @@ public class OrderTool {
         return sb.toString();
     }
 
-    @Tool(description = "取消订单，会恢复商品库存。只能取消待支付(0)和已支付(1)的订单")
+    @Tool(description = "取消订单。orderId 必须且只能从 getOrderList 返回结果中的订单ID获取。只能取消待支付(0)和已支付(1)的订单。取消前必须获得用户确认。取消后库存自动恢复")
     @OperationLog(module = "Agent", type = "删除", description = "取消订单")
     @Transactional
-    public String cancelOrder(@ToolParam(description = "订单ID，从getOrderList返回中获取") Long orderId) {
+    public String cancelOrder(@ToolParam(description = "订单ID，从getOrderList返回结果中获取") Long orderId) {
         Order order = orderMapper.findById(orderId);
         if (order == null) return "订单不存在";
         int status = order.getOrderStatus() != null ? order.getOrderStatus() : -1;
@@ -162,7 +160,7 @@ public class OrderTool {
         return "订单 " + order.getOrderNo() + " 已取消，库存已恢复";
     }
 
-    @Tool(description = "消费统计。统计用户已完成订单(状态4)的总金额、订单数、均价。period参数同上")
+    @Tool(description = "消费统计。统计用户已完成订单(状态4)的总金额和笔数。period: today/yesterday/this_week/last_week/this_month/last_month/last_3_months/this_year，不传查全部")
     @OperationLog(module = "Agent", type = "查询", description = "消费统计")
     public String getStats(
             @ToolParam(description = "用户ID") Long userId,

@@ -11,7 +11,6 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
-import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
@@ -56,11 +55,11 @@ public class FaqTool {
         }
     }
 
-    @Tool(description = "搜索FAQ知识库，回答退换货、发货、支付、售后等常见问题")
+    @Tool(description = "搜索FAQ知识库，回答退换货政策、发货时效、支付方式、售后保障等售前售后常见问题。FAQ优先于联网搜索，只有FAQ确实无法回答时才尝试联网")
     @OperationLog(module = "Agent", type = "查询", description = "FAQ搜索")
-    public String ask(@ToolParam(description = "用户的问题，如'怎么退货'、'几天到货'等") String query) {
+    public String ask(@ToolParam(description = "用户的问题，如'怎么退货'、'几天到货'、'支持哪些支付方式'等") String query) {
         List<Document> docs = vectorStore.similaritySearch(
-                SearchRequest.builder().query(query).topK(2).similarityThreshold(0.3).build());
+                SearchRequest.builder().query(query).topK(2).similarityThreshold(0.5).build());
         if (docs.isEmpty()) return "抱歉，这个问题我暂时无法回答，建议联系人工客服。";
 
         StringBuilder sb = new StringBuilder("根据知识库为您找到以下相关信息：\n");
